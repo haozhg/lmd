@@ -399,7 +399,7 @@ def gen_embeddings(
         sentence_embeddings = mean_pooling(
             outputs.last_hidden_state, examples["attention_mask"]
         )
-        return {"embedding": sentence_embeddings.detach().numpy()}
+        return {"embedding": sentence_embeddings.detach().cpu().numpy()}
 
     column_names = tokenized_datasets["train"].column_names
 
