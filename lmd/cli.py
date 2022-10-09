@@ -1,5 +1,6 @@
 """Console script for lmd."""
 import argparse
+import itertools
 import logging
 import math
 import os
@@ -510,6 +511,8 @@ def main():
 
     args.basis = args.basis.split(",")
 
+    assert args.target not in args.basis
+
     print("Arguments: " + str(args))
 
     # load dataset
@@ -549,30 +552,57 @@ def main():
 
     torch.save(embeddings, "embeddings.pt")
 
-    # solve LMD
-    lmd = LanguageModelDecomposition(
-        embeddings["train"], args.basis, args.target, alpha=args.alpha
-    )
-    lmd.train()
+    group_score = defaultdict(dict)
+    all_models = args.basis + [args.target]
+    for output in all_models:
+        input = set(all_models) - set([output])
+        input = list(input)
+        lmd = LanguageModelDecomposition(
+            embeddings["train"], input, output, alpha=args.alpha
+        )
 
-    torch.save(lmd, "lmd.model")
+        lmd.train()
 
-    logger.info(f"{lmd.score(embeddings['train'])=}")
+        torch.save(lmd, f"group_output_{'-'.join(output.split('/'))}.lmd")
 
-    logger.info(f"{lmd.score(embeddings['validation'])=}")
+        for split in ["train", "validation", "test"]:
+            group_score[split][output] = lmd.score(embeddings[split])
 
-    logger.info(f"{lmd.score(embeddings['test'])=}")
+    torch.save(group_score, "group_score.pt")
 
-    lmd_from_file = torch.load("lmd.model")
-    logger.info(f"{type(lmd_from_file)=}")
+    # pairwise
+    pairwise_score = dict()
 
-    logger.info(f"{lmd_from_file.score(embeddings['train'])=}")
+    for split in ["train", "validation", "test"]:
+        pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
-    logger.info(f"{lmd_from_file.score(embeddings['validation'])=}")
+    for input, output in itertools.combinations(all_models, 2):
+        lmd = LanguageModelDecomposition(
+            embeddings["train"], input, output, alpha=args.alpha
+        )
 
-    logger.info(f"{lmd_from_file.score(embeddings['test'])=}")
+        lmd.train()
 
-    assert torch.equal(lmd.W, lmd_from_file.W)
+        torch.save(
+            lmd,
+            f"pairwise_output_{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
+        )
+
+        for split in ["train", "validation", "test"]:
+            pairwise_score[split].loc[input, output] = lmd.score(embeddings[split])
+
+    torch.save(pairwise_score, "pairwise_score.pt")
+
+    # lmd_from_file = torch.load("lmd.model")
+    # logger.info(f"{type(lmd_from_file)=}")
+
+    # logger.info(f"{lmd_from_file.score(embeddings['train'])=}")
+
+    # logger.info(f"{lmd_from_file.score(embeddings['validation'])=}")
+
+    # logger.info(f"{lmd_from_file.score(embeddings['test'])=}")
+
+    # assert torch.equal(lmd.W, lmd_from_file.W)
 
 
 if __name__ == "__main__":
