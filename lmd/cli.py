@@ -483,7 +483,7 @@ class LanguageModelDecomposition:
 
     def __str__(self) -> str:
         return (
-            f"LanguageModelDecomposition({self.input=}, {self.output=}, {self.alpha=})"
+            f"LanguageModelDecomposition(input={self.input}, output={self.output}, alpha={self.alpha})"
         )
 
     def train(self):
@@ -618,6 +618,7 @@ def main():
         for split in ["train", "validation", "test"]:
             group_score[split][output] = lmd.score(embeddings[split])
 
+    os.makedirs("results", exist_ok=True)
     logger.info(f"group_score={json.dumps(group_score, indent=4)}")
     with open("results/group_score.json", "w") as f:
         json.dump(group_score, f, indent=4)
@@ -652,7 +653,6 @@ def main():
     logger.info(f"{pairwise_score=}")
 
     logger.info(f"save pairwise_score df to file")
-    os.makedirs("results", exist_ok=True)
     for split in ["train", "validation", "test"]:
         filename = os.path.join("results", f"pairwise_score_{split}.csv")
         pairwise_score[split].to_csv(filename)
