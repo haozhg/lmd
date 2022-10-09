@@ -1,0 +1,44 @@
+{
+    "train": {
+        "bert-base-uncased": 0.9999980405325244,
+        "xlm-roberta-base": 0.9999993973613389,
+        "bert-base-multilingual-cased": 0.9999997144754686,
+        "allenai/longformer-base-4096": 0.9999992596563547,
+        "microsoft/deberta-base": 0.9999948298651422,
+        "distilbert-base-multilingual-cased": 0.9999983790295056,
+        "roberta-base": 0.9999984523859463,
+        "xlnet-base-cased": 0.9997496780133899,
+        "google/electra-base-discriminator": 0.9999999173972989,
+        "distilroberta-base": 0.9999995590437907,
+        "distilbert-base-uncased": 0.9999997276153364,
+        "albert-base-v2": 0.9999988616356762
+    },
+    "validation": {
+        "bert-base-uncased": -1.1537691598966906,
+        "xlm-roberta-base": 0.12527652854917126,
+        "bert-base-multilingual-cased": 0.5821762072644037,
+        "allenai/longformer-base-4096": -0.2593708767121159,
+        "microsoft/deberta-base": -4.773274562756179,
+        "distilbert-base-multilingual-cased": -0.8903776287249625,
+        "roberta-base": -1.153969939702344,
+        "xlnet-base-cased": -54.01488568244255,
+        "google/electra-base-discriminator": 0.8903013142782883,
+        "distilroberta-base": 0.12085821495375615,
+        "distilbert-base-uncased": 0.5254367241567471,
+        "albert-base-v2": -0.046051457124515194
+    },
+    "test": {
+        "bert-base-uncased": -0.9682002872200084,
+        "xlm-roberta-base": -0.09685525292186714,
+        "bert-base-multilingual-cased": 0.6430390441601672,
+        "allenai/longformer-base-4096": -0.5284525905917576,
+        "microsoft/deberta-base": -4.171963095377849,
+        "distilbert-base-multilingual-cased": -0.9491280477691482,
+        "roberta-base": -0.9307109904498516,
+        "xlnet-base-cased": -61.76201782611651,
+        "google/electra-base-discriminator": 0.8640578468396619,
+        "distilroberta-base": 0.24648001882933213,
+        "distilbert-base-uncased": 0.5928201432279868,
+        "albert-base-v2": -0.3069581257290266
+    }
+}
