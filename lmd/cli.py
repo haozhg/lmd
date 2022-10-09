@@ -1,6 +1,7 @@
 """Console script for lmd."""
 import argparse
 import itertools
+import json
 import logging
 import math
 import os
@@ -9,6 +10,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
+from textwrap import indent
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
@@ -363,7 +365,7 @@ def gen_embeddings(
     model = AutoModel.from_pretrained(model_name_or_path)
     model.to(dev)
     model.eval()
-    
+
     logger.info(f"{model.device=}")
 
     column_names = raw_datasets["train"].column_names
@@ -478,9 +480,11 @@ class LanguageModelDecomposition:
         self.output = output
         self.alpha = alpha
         assert alpha >= 0
-    
+
     def __str__(self) -> str:
-        return f"LanguageModelDecomposition({self.input=}, {self.output=}, {self.alpha=})"
+        return (
+            f"LanguageModelDecomposition({self.input=}, {self.output=}, {self.alpha=})"
+        )
 
     def train(self):
         # (hidden_size * num_inputs, batch_size)
@@ -527,7 +531,7 @@ class LanguageModelDecomposition:
         E = U - torch.mm(self.W, Z)
         SSR = torch.sum(E**2, dim=0).mean().item()
         SST = torch.sum(U**2, dim=0).mean().item()
-        
+
         logger.debug(f"{SSR=}, {SST=}")
         return 1 - SSR / SST
 
@@ -544,7 +548,7 @@ def main():
     assert args.target not in args.basis
 
     print("Arguments: " + str(args))
-    
+
     logger.setLevel(args.log_level)
 
     logger.info(f"Try load all models: {MODELS}")
@@ -606,13 +610,16 @@ def main():
 
         lmd.train()
 
-        torch.save(lmd, f"group_output_{'-'.join(output.split('/'))}.lmd")
+        filename = os.path.join("models", "group", f"{'-'.join(output.split('/'))}.lmd")
+        logger.info(f"save group model {str(lmd)} to {filename}")
+        torch.save(lmd, filename)
 
         for split in ["train", "validation", "test"]:
             group_score[split][output] = lmd.score(embeddings[split])
 
-    logger.info(f"{group_score=}")
-    torch.save(group_score, "group_score.pt")
+    logger.info(f"group_score={json.dumps(group_score, indent=4)}")
+    with open("results/group_score.json", "w") as f:
+        json.dump(group_score, f, indent=4)
 
     # pairwise
     pairwise_score = dict()
@@ -627,16 +634,25 @@ def main():
 
         lmd.train()
 
-        torch.save(
-            lmd,
-            f"pairwise_output_{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
+        filename = os.path.join(
+            "models",
+            "pairwise",
+            f"{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
         )
+
+        logger.info(f"save pairwise model {str(lmd)} to {filename}")
+
+        torch.save(lmd, filename)
 
         for split in ["train", "validation", "test"]:
             pairwise_score[split].loc[input, output] = lmd.score(embeddings[split])
 
     logger.info(f"{pairwise_score=}")
-    torch.save(pairwise_score, "pairwise_score.pt")
+
+    logger.info(f"save pairwise_score df to file")
+    for split in ["train", "validation", "test"]:
+        filename = os.path.join("results", f"pairwise_score_{split}.csv")
+        pairwise_score[split].to_csv(filename)
 
     # lmd_from_file = torch.load("lmd.model")
     # logger.info(f"{type(lmd_from_file)=}")
