@@ -157,6 +157,18 @@ def parse_args():
         help="data dir to save embedding datasets",
     )
     parser.add_argument(
+        "--results-dir",
+        type=str,
+        default="results",
+        help="data dir to save LMD results",
+    )
+    parser.add_argument(
+        "--models-dir",
+        type=str,
+        default="models",
+        help="data dir to save LMD models",
+    )
+    parser.add_argument(
         "--alpha",
         type=float,
         default=1e-6,
@@ -213,7 +225,7 @@ def sample_datasets_subset(
     return raw_datasets
 
 
-def gen_sentences(
+def gen_sequence(
     raw_datasets: DatasetDict, data_args: argparse.Namespace
 ) -> DatasetDict:
     """_summary_
@@ -312,7 +324,7 @@ def gen_sentences(
     log_few_samples(grouped_datasets)
 
     filename = os.path.join(
-        data_args.preprocess_dir, data_args.tokenizer_name, "tokenized_grouped"
+        data_args.preprocess_dir, data_args.tokenizer_name, "grouped"
     )
     logger.info(f"save grouped_datasets to {filename}")
     grouped_datasets.save_to_disk(filename)
@@ -358,7 +370,7 @@ def gen_sentences(
     logger.info(f"after selecting subset\nsequence_datasets: {sequence_datasets}")
 
     filename = os.path.join(
-        data_args.preprocess_dir, data_args.tokenizer_name, "tokenized_grouped_sequence"
+        data_args.preprocess_dir, data_args.tokenizer_name, "sequence"
     )
     logger.info(f"save sequence_datasets to {filename}")
     sequence_datasets.save_to_disk(filename)
@@ -464,10 +476,10 @@ def gen_embeddings(
         examples.to(model.device)
         with torch.no_grad():
             outputs = model(**examples)
-            sentence_embeddings = mean_pooling(
+            sequence_embeddings = mean_pooling(
                 outputs.last_hidden_state, examples["attention_mask"]
             )
-            return {"embedding": sentence_embeddings.detach().cpu().numpy()}
+            return {"embedding": sequence_embeddings.detach().cpu().numpy()}
 
     column_names = tokenized_datasets["train"].column_names
 
@@ -488,14 +500,10 @@ def gen_embeddings(
     logger.info(f"after computing embedding:\n{embedding_datasets=}")
     log_few_samples(embedding_datasets)
 
-    filename = os.path.join(
-        data_args.embedding_dir, model_name_or_path, "tokenized_grouped_embeddings"
-    )
+    filename = os.path.join(data_args.embedding_dir, model_name_or_path, "embeddings")
     logger.info(f"save embedding_datasets to {filename}")
     embedding_datasets.save_to_disk(
-        os.path.join(
-            data_args.embedding_dir, model_name_or_path, "tokenized_grouped_embeddings"
-        )
+        os.path.join(data_args.embedding_dir, model_name_or_path, "embeddings")
     )
 
     return embedding_datasets
@@ -657,18 +665,21 @@ def main():
 
     log_few_samples(raw_datasets)
 
-    # first use bert tokenizer to generate sentences
-    sequence_datasets: DatasetDict = gen_sentences(raw_datasets, args)
+    # first use bert tokenizer to generate sequences (length = args.max_seq_length)
+    sequence_datasets: DatasetDict = gen_sequence(raw_datasets, args)
 
     # then tokenize using model specific tokenizers
     # compute embedding
     all_models = [args.target] + args.basis
 
+    embeddings_path = os.path.join(
+        args.embedding_dir, args.max_seq_length, "embeddings.pt"
+    )
     try:
-        logger.info(f"Try to load embeddings from: embeddings.pt")
-        embeddings = torch.load("embeddings.pt")
+        logger.info(f"Try to load embeddings from: {embeddings_path}")
+        embeddings = torch.load(embeddings_path)
     except:
-        logger.info(f"Failed: Try to load embeddings from: embeddings.pt")
+        logger.info(f"Failed: Try to load embeddings from: {embeddings_path}")
         logger.info(f"Regen embeddings:")
         embeddings = defaultdict(dict)
         for model_name in tqdm(all_models, desc="Regen embeddings"):
@@ -678,12 +689,13 @@ def main():
             )
             for split, ds in embedding_datasets.items():
                 embeddings[split][model_name] = ds["embedding"]
-        logger.info(f"Save embeddings to: embeddings.pt")
-        torch.save(embeddings, "embeddings.pt")
+        logger.info(f"Save embeddings to: {embeddings_path}")
+        torch.save(embeddings, embeddings_path)
 
     logger.info(f"Run LMD for group score")
     group_score = defaultdict(dict)
-    os.makedirs("models/group", exist_ok=True)
+    group_model_dir = os.path.join(args.models_dir, args.max_seq_length, "group")
+    os.makedirs(group_model_dir, exist_ok=True)
     for output in tqdm(all_models, desc="Run LMD for group score"):
         input = set(all_models) - set([output])
         input = list(input)
@@ -694,7 +706,7 @@ def main():
         logger.info(f"Run {str(lmd)}")
         lmd.train()
 
-        filename = os.path.join("models", "group", f"{'-'.join(output.split('/'))}.lmd")
+        filename = os.path.join(group_model_dir, f"{'-'.join(output.split('/'))}.lmd")
         logger.info(f"save group model {str(lmd)} to {filename}")
         torch.save(lmd, filename)
 
@@ -703,9 +715,10 @@ def main():
             logger.info(f"{str(lmd)}, {split=}, {R2=}")
             group_score[split][output] = R2
 
-    os.makedirs("results", exist_ok=True)
+    results_dir = os.path.join(args.results_dir, args.max_seq_length)
+    os.makedirs(results_dir, exist_ok=True)
     logger.info(f"group_score={json.dumps(group_score, indent=4)}")
-    with open("results/group_score.json", "w") as f:
+    with open(os.path.join(results_dir, "group_score.json"), "w") as f:
         json.dump(group_score, f, indent=4)
 
     # pairwise
@@ -715,7 +728,8 @@ def main():
     for split in ["train", "validation", "test"]:
         pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
-    os.makedirs("models/pairwise", exist_ok=True)
+    pairwise_model_dir = os.path.join(args.models_dir, args.max_seq_length, "pairwise")
+    os.makedirs(pairwise_model_dir, exist_ok=True)
     all_pairs = list(itertools.permutations(all_models, 2))
     for input, output in tqdm(all_pairs, desc="Run LMD for pairwise score"):
         logger.info(f"{input=}, {output=}")
@@ -726,8 +740,7 @@ def main():
         lmd.train()
 
         filename = os.path.join(
-            "models",
-            "pairwise",
+            pairwise_model_dir,
             f"output_{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
         )
 
@@ -746,7 +759,7 @@ def main():
     logger.info(f"save pairwise_score df to file")
     for split in ["train", "validation", "test"]:
         logger.info(f"{split=}, {pairwise_score[split]=}")
-        filename = os.path.join("results", f"pairwise_score_{split}.csv")
+        filename = os.path.join(results_dir, f"pairwise_score_{split}.csv")
         pairwise_score[split].to_csv(filename)
 
     # lmd_from_file = torch.load("lmd.model")
