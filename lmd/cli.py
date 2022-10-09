@@ -150,6 +150,12 @@ def parse_args():
         default=1e-6,
         help="L2 regularization coefficient",
     )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        help="logging level",
+    )
     args = parser.parse_args()
     return args
 
@@ -157,7 +163,7 @@ def parse_args():
 def log_few_samples(raw_datasets: DatasetDict, k: int = 1):
     for split, ds in raw_datasets.items():
         for index in random.sample(range(len(ds)), k):
-            logger.info(f"Sample {index} of the {split} set: {ds[index]}.")
+            logger.debug(f"Sample {index} of the {split} set: {ds[index]}.")
 
 
 def sample_datasets_subset(
@@ -472,6 +478,9 @@ class LanguageModelDecomposition:
         self.output = output
         self.alpha = alpha
         assert alpha >= 0
+    
+    def __str__(self) -> str:
+        return f"LanguageModelDecomposition({self.input=}, {self.output=}, {self.alpha=})"
 
     def train(self):
         # (hidden_size * num_inputs, batch_size)
@@ -480,27 +489,27 @@ class LanguageModelDecomposition:
         # (hidden_size, batch_size)
         U = self.embeddings[self.output].T
 
-        logger.info(f"{Z.shape=}")
-        logger.info(f"{Z.device=}")
-        logger.info(f"{U.shape=}")
-        logger.info(f"{U.device=}")
+        logger.debug(f"{Z.shape=}")
+        logger.debug(f"{Z.device=}")
+        logger.debug(f"{U.shape=}")
+        logger.debug(f"{U.device=}")
 
         # E[z * z^T]
         # (hidden_size * num_inputs, hidden_size * num_inputs)
         A = torch.mm(Z, torch.t(Z)) / Z.shape[0]
-        logger.info(f"{A.shape=}")
+        logger.debug(f"{A.shape=}")
 
         # E[u * z^T]
         # (hidden_size, hidden_size * num_inputs)
         B = torch.mm(U, torch.t(Z)) / Z.shape[0]
-        logger.info(f"{B.shape=}")
+        logger.debug(f"{B.shape=}")
 
         # W = B * (A)^(-1)
         # W*A = B => A^T * W^T = B^T, A = A^T
         # (hidden_size, hidden_size * num_inputs)
         self.W = torch.linalg.solve(A + self.alpha * torch.eye(A.shape[0]), B.T).T
-        logger.info(f"{self.W.shape=}")
-        logger.info(f"{self.W.device=}")
+        logger.debug(f"{self.W.shape=}")
+        logger.debug(f"{self.W.device=}")
 
     def score(self, embeddings: Dict[str, torch.Tensor]) -> float:
         # (hidden_size * num_inputs, batch_size)
@@ -509,15 +518,17 @@ class LanguageModelDecomposition:
         # (hidden_size, batch_size)
         U = embeddings[self.output].T
 
-        logger.info(f"{Z.shape=}")
-        logger.info(f"{Z.device=}")
-        logger.info(f"{U.shape=}")
-        logger.info(f"{U.device=}")
+        logger.debug(f"{Z.shape=}")
+        logger.debug(f"{Z.device=}")
+        logger.debug(f"{U.shape=}")
+        logger.debug(f"{U.device=}")
 
         # E.shape = (hidden_size, batch_size)
         E = U - torch.mm(self.W, Z)
         SSR = torch.sum(E**2, dim=0).mean().item()
         SST = torch.sum(U**2, dim=0).mean().item()
+        
+        logger.debug(f"{SSR=}, {SST=}")
         return 1 - SSR / SST
 
 
@@ -533,6 +544,8 @@ def main():
     assert args.target not in args.basis
 
     print("Arguments: " + str(args))
+    
+    logger.setLevel(args.log_level)
 
     logger.info(f"Try load all models: {MODELS}")
     for model_name in MODELS:
@@ -568,6 +581,8 @@ def main():
         logger.info(f"Try to load embeddings from: embeddings.pt")
         embeddings = torch.load("embeddings.pt")
     except:
+        logger.info(f"Failed: Try to load embeddings from: embeddings.pt")
+        logger.info(f"Regen embeddings:")
         embeddings = defaultdict(dict)
         embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
         for split, ds in embedding_datasets.items():
@@ -605,7 +620,7 @@ def main():
     for split in ["train", "validation", "test"]:
         pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
-    for input, output in itertools.combinations(all_models, 2):
+    for input, output in itertools.permutations(all_models, 2):
         lmd = LanguageModelDecomposition(
             embeddings["train"], input, output, alpha=args.alpha
         )
