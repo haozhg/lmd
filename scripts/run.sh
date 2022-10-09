@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -x
 
-for max_seq_length in 16 32 64 128 256 512
+for max_seq_length in 1 2 4 8 16 32 64 128 256 512
 do
     time python lmd/cli.py \
         --batch-size 64 \
