@@ -342,6 +342,7 @@ def gen_embeddings(
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     model = AutoModel.from_pretrained(model_name_or_path)
     model.to(dev)
+    model.eval()
 
     column_names = raw_datasets["train"].column_names
     text_column_name = "text" if "text" in column_names else column_names[0]
@@ -420,6 +421,9 @@ def gen_embeddings(
         desc=f"Get sequence embeddings",
     )
 
+    model = model.cpu()
+    del model
+    
     logger.info(f"after computing embedding:\n{embedding_datasets=}")
     log_few_samples(embedding_datasets)
 
