@@ -99,7 +99,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-config-name",
         type=str,
-        default="wikitext-2-v1",
+        default="wikitext-103-v1",
         help="The configuration name of the dataset (corpus) to use (via the datasets library).",
     )
     parser.add_argument(
@@ -597,6 +597,7 @@ def main():
                     encoded_input.to(model.device)
                     outputs = model(**encoded_input)
                     assert outputs.last_hidden_state.requires_grad == False
+            model = model.cpu()
             del model
 
     # load dataset
