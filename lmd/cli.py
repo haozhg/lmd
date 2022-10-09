@@ -8,14 +8,15 @@ import random
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 from itertools import chain
 from typing import Dict, List, Optional, Union
-from tqdm import tqdm
 
 import pandas as pd
 import torch
 import transformers
 from datasets import DatasetDict, load_dataset
+from tqdm import tqdm
 from transformers import (
     AutoModel,
     AutoTokenizer,
@@ -163,6 +164,25 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
+
+
+class Timer:
+    def __init__(self, what: str, total: int = None) -> None:
+        self.what = what
+        self.total = total
+
+    def __enter__(self):
+        self.start = datetime.now()
+        logger.info(f"Starting {self.what}...")
+
+    def __exit__(self, type, value, traceback):
+        end = datetime.now()
+        total_seconds = (end - self.start).total_seconds()
+        logger.info(f"{self.what} took {total_seconds} seconds")
+        if self.total:
+            logger.info(
+                f"{self.what} took {total_seconds / self.total} seconds per iteration"
+            )
 
 
 def log_few_samples(raw_datasets: DatasetDict, k: int = 1):
@@ -555,10 +575,25 @@ def main():
     logger.setLevel(args.log_level)
 
     if args.try_models:
-        logger.info(f"Try load all models: {MODELS}")
-        for model_name in tqdm(MODELS, desc="Try load all models"):
+        logger.info(f"Try model inference with given batch size: {MODELS}")
+        for model_name in tqdm(MODELS, desc="Try model inference"):
             logger.info(f"load model: {model_name}")
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModel.from_pretrained(model_name)
+            model.eval()
+            with Timer(f"model inference for {model_name}"):
+                with torch.no_grad():
+                    texts = [
+                        " ".join(["hello"] * args.max_seq_length)
+                    ] * args.batch_size
+                    encoded_input = tokenizer(
+                        texts,
+                        padding="max_length",
+                        max_length=args.max_seq_length,
+                        truncation=True,
+                    )
+                    outputs = model(**encoded_input)
+                    assert outputs.last_hidden_state.requires_grad == False
             del model
 
     # load dataset
