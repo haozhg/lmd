@@ -50,7 +50,7 @@ MODELS = [
     "xlm-roberta-base",
     "bert-base-multilingual-cased",
     "roberta-base",
-    "xlnet-base-uncased",
+    "xlnet-base-cased",
     "bert-base-uncased",
     "distilroberta-base",
     "distilbert-base-uncased",
@@ -530,7 +530,9 @@ def main():
 
     print("Arguments: " + str(args))
 
+    logger.info(f"Try load all models: {MODELS}")
     for model_name in MODELS:
+        logger.info(f"load model: {model_name}")
         model = AutoModel.from_pretrained(model_name)
         del model
 
