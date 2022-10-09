@@ -42,6 +42,10 @@ else:
     dev = "cpu"
 
 
+pd.set_option("display.max_columns", None)
+pd.set_option("display.max_rows", None)
+
+
 MODELS = [
     "xlm-roberta-base",
     "bert-base-multilingual-cased",
@@ -744,7 +748,9 @@ def main():
         torch.save(embeddings, embeddings_path)
 
     logger.info(f"Run LMD for group score")
-    group_score = defaultdict(dict)
+    group_score = pd.DataFrame(
+        index=["train", "validation", "test"], columns=all_models
+    )
     group_model_dir = os.path.join(args.models_dir, str(args.max_seq_length), "group")
     os.makedirs(group_model_dir, exist_ok=True)
     for output in tqdm(all_models, desc="Run LMD for group score"):
@@ -762,13 +768,15 @@ def main():
         for split in ["train", "validation", "test"]:
             R2 = lmd.score(embeddings[split])
             logger.info(f"{str(lmd)}, {split=}, {R2=}")
-            group_score[split][output] = R2
+            group_score.loc[split, output] = R2
 
     results_dir = os.path.join(args.results_dir, str(args.max_seq_length))
     os.makedirs(results_dir, exist_ok=True)
-    logger.info(f"group_score={json.dumps(group_score, indent=4)}")
-    with open(os.path.join(results_dir, "group_score.json"), "w") as f:
-        json.dump(group_score, f, indent=4)
+
+    logger.info(f"group_score={group_score}")
+    filename = os.path.join(results_dir, "group_score.csv")
+    logger.info(f"save group_score to: {filename}")
+    group_score.to_csv(filename)
 
     # pairwise
     logger.info(f"Run LMD for pairwise score")
@@ -802,13 +810,10 @@ def main():
             logger.info(f"{input=}, {output=}, {split=}, {R2=}")
             pairwise_score[split].loc[input, output] = R2
 
-    pd.set_option("display.max_columns", None)
-    pd.set_option("display.max_rows", None)
-
-    logger.info(f"save pairwise_score df to file")
     for split in ["train", "validation", "test"]:
         logger.info(f"{split=}, {pairwise_score[split]=}")
         filename = os.path.join(results_dir, f"pairwise_score_{split}.csv")
+        logger.info(f"save pairwise_score to: {filename}")
         pairwise_score[split].to_csv(filename)
 
     # lmd_from_file = torch.load("lmd.model")
