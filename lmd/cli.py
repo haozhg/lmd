@@ -51,9 +51,13 @@ else:
 MODELS = [
     "xlm-roberta-base",
     "bert-base-multilingual-cased",
+    "allenai/longformer-base-4096",
+    "microsoft/deberta-base",
+    "distilbert-base-multilingual-cased",
     "roberta-base",
     "xlnet-base-cased",
     "bert-base-uncased",
+    "google/electra-base-discriminator",
     "distilroberta-base",
     "distilbert-base-uncased",
     "albert-base-v2",
@@ -482,9 +486,7 @@ class LanguageModelDecomposition:
         assert alpha >= 0
 
     def __str__(self) -> str:
-        return (
-            f"LanguageModelDecomposition(input={self.input}, output={self.output}, alpha={self.alpha})"
-        )
+        return f"LanguageModelDecomposition(input={self.input}, output={self.output}, alpha={self.alpha})"
 
     def train(self):
         # (hidden_size * num_inputs, batch_size)
@@ -640,7 +642,7 @@ def main():
         filename = os.path.join(
             "models",
             "pairwise",
-            f"{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
+            f"output_{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
         )
 
         logger.info(f"save pairwise model {str(lmd)} to {filename}")
