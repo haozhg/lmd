@@ -10,6 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Dict, List, Optional, Union
+from tqdm import tqdm
 
 import pandas as pd
 import torch
@@ -554,7 +555,7 @@ def main():
 
     if args.try_models:
         logger.info(f"Try load all models: {MODELS}")
-        for model_name in MODELS:
+        for model_name in tqdm(MODELS, desc="Try load all models"):
             logger.info(f"load model: {model_name}")
             model = AutoModel.from_pretrained(model_name)
             del model
@@ -591,7 +592,7 @@ def main():
         logger.info(f"Failed: Try to load embeddings from: embeddings.pt")
         logger.info(f"Regen embeddings:")
         embeddings = defaultdict(dict)
-        for model_name in all_models:
+        for model_name in tqdm(all_models, desc="Regen embeddings"):
             logger.info(f"gen embeddings for {model_name=}")
             embedding_datasets: DatasetDict = gen_embeddings(
                 model_name, sequence_datasets, args
@@ -601,9 +602,10 @@ def main():
         logger.info(f"Save embeddings to: embeddings.pt")
         torch.save(embeddings, "embeddings.pt")
 
+    logger.info(f"Run LMD for group score")
     group_score = defaultdict(dict)
     os.makedirs("models/group", exist_ok=True)
-    for output in all_models:
+    for output in tqdm(all_models, desc="Run LMD for group score"):
         input = set(all_models) - set([output])
         input = list(input)
         lmd = LanguageModelDecomposition(
@@ -625,13 +627,16 @@ def main():
         json.dump(group_score, f, indent=4)
 
     # pairwise
+    logger.info(f"Run LMD for pairwise score")
     pairwise_score = dict()
 
     for split in ["train", "validation", "test"]:
         pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
     os.makedirs("models/pairwise", exist_ok=True)
-    for input, output in itertools.permutations(all_models, 2):
+    for input, output in tqdm(
+        itertools.permutations(all_models, 2), desc="Run LMD for pairwise score"
+    ):
         lmd = LanguageModelDecomposition(
             embeddings["train"], input, output, alpha=args.alpha
         )
