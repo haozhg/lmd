@@ -5,10 +5,10 @@ import math
 import os
 import random
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Dict, List, Optional, Union
-from collections import defaultdict
 
 import pandas as pd
 import torch
@@ -424,7 +424,7 @@ def gen_embeddings(
 
     model = model.cpu()
     del model
-    
+
     logger.info(f"after computing embedding:\n{embedding_datasets=}")
     log_few_samples(embedding_datasets)
 
@@ -538,13 +538,13 @@ def main():
     embeddings = defaultdict(dict)
     embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
     for split, ds in embedding_datasets.items():
-        embeddings[split][args.target] = ds
+        embeddings[split][args.target] = ds["embedding"]
 
     for model_name in args.basis:
         logger.info(f"gen embeddings for {model_name=}")
         embedding_datasets = gen_embeddings(model_name, sequence_datasets, args)
         for split, ds in embedding_datasets.items():
-            embeddings[split][model_name] = ds
+            embeddings[split][model_name] = ds["embedding"]
 
     torch.save(embeddings, "embeddings.pt")
 
