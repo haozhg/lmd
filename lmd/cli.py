@@ -601,6 +601,7 @@ def main():
 
     group_score = defaultdict(dict)
     all_models = args.basis + [args.target]
+    os.makedirs("models/group", exist_ok=True)
     for output in all_models:
         input = set(all_models) - set([output])
         input = list(input)
@@ -627,6 +628,7 @@ def main():
     for split in ["train", "validation", "test"]:
         pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
+    os.makedirs("models/pairwise", exist_ok=True)
     for input, output in itertools.permutations(all_models, 2):
         lmd = LanguageModelDecomposition(
             embeddings["train"], input, output, alpha=args.alpha
@@ -650,6 +652,7 @@ def main():
     logger.info(f"{pairwise_score=}")
 
     logger.info(f"save pairwise_score df to file")
+    os.makedirs("results", exist_ok=True)
     for split in ["train", "validation", "test"]:
         filename = os.path.join("results", f"pairwise_score_{split}.csv")
         pairwise_score[split].to_csv(filename)
