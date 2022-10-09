@@ -580,7 +580,9 @@ def main():
             logger.info(f"load model: {model_name}")
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModel.from_pretrained(model_name)
+            model.to(dev)
             model.eval()
+            logger.info(f"{model.device=}")
             with Timer(f"model inference for {model_name}"):
                 with torch.no_grad():
                     text = " ".join(["hello"] * args.max_seq_length)
