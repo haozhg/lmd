@@ -594,6 +594,7 @@ def main():
                         truncation=True,
                         return_tensors="pt",
                     )
+                    encoded_input.to(model.device)
                     outputs = model(**encoded_input)
                     assert outputs.last_hidden_state.requires_grad == False
             del model
