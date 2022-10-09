@@ -3,14 +3,12 @@ import argparse
 import itertools
 import json
 import logging
-import math
 import os
 import random
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
-from textwrap import indent
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
@@ -18,17 +16,11 @@ import torch
 import transformers
 from datasets import DatasetDict, load_dataset
 from transformers import (
-    CONFIG_MAPPING,
-    MODEL_FOR_MASKED_LM_MAPPING,
-    AutoConfig,
     AutoModel,
-    AutoModelForMaskedLM,
     AutoTokenizer,
-    DataCollatorForLanguageModeling,
     HfArgumentParser,
     Trainer,
     TrainingArguments,
-    is_torch_tpu_available,
     set_seed,
 )
 
@@ -578,10 +570,12 @@ def main():
     log_few_samples(raw_datasets)
 
     # first use bert tokenizer to generate sentences
-    sequence_datasets = gen_sentences(raw_datasets, args)
+    sequence_datasets: DatasetDict = gen_sentences(raw_datasets, args)
 
     # then tokenize using model specific tokenizers
     # compute embedding
+    all_models = args.basis + [args.target]
+
     logger.info(f"gen embeddings for target model_name={args.target}")
     try:
         logger.info(f"Try to load embeddings from: embeddings.pt")
@@ -590,19 +584,17 @@ def main():
         logger.info(f"Failed: Try to load embeddings from: embeddings.pt")
         logger.info(f"Regen embeddings:")
         embeddings = defaultdict(dict)
-        embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
-        for split, ds in embedding_datasets.items():
-            embeddings[split][args.target] = ds["embedding"]
-        for model_name in args.basis:
+        for model_name in all_models:
             logger.info(f"gen embeddings for {model_name=}")
-            embedding_datasets = gen_embeddings(model_name, sequence_datasets, args)
+            embedding_datasets: DatasetDict = gen_embeddings(
+                model_name, sequence_datasets, args
+            )
             for split, ds in embedding_datasets.items():
                 embeddings[split][model_name] = ds["embedding"]
         logger.info(f"Save embeddings to: embeddings.pt")
         torch.save(embeddings, "embeddings.pt")
 
     group_score = defaultdict(dict)
-    all_models = args.basis + [args.target]
     os.makedirs("models/group", exist_ok=True)
     for output in all_models:
         input = set(all_models) - set([output])
