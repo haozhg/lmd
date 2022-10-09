@@ -8,6 +8,7 @@ import sys
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Dict, List, Optional, Union
+from collections import defaultdict
 
 import pandas as pd
 import torch
@@ -73,7 +74,7 @@ def parse_args():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=16,
+        default=32,
         help="batch size for model inference",
     )
     parser.add_argument(
@@ -534,7 +535,7 @@ def main():
     # then tokenize using model specific tokenizers
     # compute embedding
     logger.info(f"gen embeddings for target model_name={args.target}")
-    embeddings = {}
+    embeddings = defaultdict(dict)
     embedding_datasets = gen_embeddings(args.target, sequence_datasets, args).items()
     for split, ds in embedding_datasets:
         embeddings[split][args.target] = ds
