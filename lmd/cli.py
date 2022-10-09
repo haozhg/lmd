@@ -412,6 +412,7 @@ def gen_embeddings(
 
     column_names = tokenized_datasets["train"].column_names
 
+    # embeddings are CPU Tensor
     embedding_datasets = tokenized_datasets.map(
         get_sequence_embedding,
         batched=True,
@@ -500,7 +501,7 @@ class LanguageModelDecomposition:
         E = U - torch.mm(self.W, Z)
         SSR = torch.sum(E**2, dim=0).mean().item()
         SST = torch.sum(U**2, dim=0).mean().item()
-        return SSR / SST
+        return 1 - SSR / SST
 
 
 def main():
@@ -554,11 +555,24 @@ def main():
     )
     lmd.train()
 
+    torch.save("lmd", "lmd.obj")
+
     logger.info(f"{lmd.score(embeddings['train'])=}")
 
     logger.info(f"{lmd.score(embeddings['validation'])=}")
 
     logger.info(f"{lmd.score(embeddings['test'])=}")
+
+    lmd_from_file = torch.load("lmd.obj")
+    logger.info(f"{type(lmd_from_file)=}")
+
+    logger.info(f"{lmd_from_file.score(embeddings['train'])=}")
+
+    logger.info(f"{lmd_from_file.score(embeddings['validation'])=}")
+
+    logger.info(f"{lmd_from_file.score(embeddings['test'])=}")
+
+    assert torch.equal(lmd.W, lmd_from_file.W)
 
 
 if __name__ == "__main__":
