@@ -94,30 +94,42 @@ def parse_args():
         "--dataset-name",
         type=str,
         default="wikitext",
-        help="The name of the dataset (corpus) to use (via the datasets library).",
+        help="The name of the dataset (corpus) to use (via the datasets library). E.g., (bookcorpus, None)/(wikicorpus, raw_en)/(wikitext, wikitext-103-v1)",
     )
     parser.add_argument(
         "--dataset-config-name",
         type=str,
         default="wikitext-103-v1",
-        help="The configuration name of the dataset (corpus) to use (via the datasets library).",
+        help="The configuration name of the dataset (corpus) to use (via the datasets library). E.g., (bookcorpus, None)/(wikicorpus, raw_en)/(wikitext, wikitext-103-v1)",
+    )
+    parser.add_argument(
+        "--val-split-percentage",
+        type=int,
+        default=5,
+        help="The percentage of the train set used as validation set in case there's no validation split",
+    )
+    parser.add_argument(
+        "--test-split-percentage",
+        type=int,
+        default=5,
+        help="The percentage of the train set used as test set in case there's no test split",
     )
     parser.add_argument(
         "--max-train-samples",
         type=int,
-        default=1280,
+        default=20000,
         help="max train samples",
     )
     parser.add_argument(
         "--max-val-samples",
         type=int,
-        default=128,
+        default=2000,
         help="max validation samples",
     )
     parser.add_argument(
         "--max-test-samples",
         type=int,
-        default=128,
+        default=2000,
         help="max test samples",
     )
     parser.add_argument(
@@ -160,7 +172,7 @@ def parse_args():
         "--try-models",
         type=bool,
         default=False,
-        help="whether to try to load all models before running main",
+        help="try load model and run inference for all models before running main",
     )
     args = parser.parse_args()
     return args
@@ -607,6 +619,28 @@ def main():
 
     # load dataset
     raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
+
+    # split validation if not exists
+    # ref: https://github.com/huggingface/transformers/blob/main/examples/pytorch/language-modeling/run_mlm.py#L289
+    # https://huggingface.co/docs/datasets/v1.11.0/splits.html
+    # https://huggingface.co/docs/datasets/loading#slice-splits
+    if "validation" not in raw_datasets.keys():
+        logger.info(f"split validation and test from train")
+        raw_datasets["validation"] = load_dataset(
+            args.dataset_name,
+            args.dataset_config_name,
+            split=f"train[:{args.val_split_percentage}%]",
+        )
+        raw_datasets["test"] = load_dataset(
+            args.dataset_name,
+            args.dataset_config_name,
+            split=f"train[{args.val_split_percentage}%:{args.val_split_percentage + args.test_split_percentage}%]",
+        )
+        raw_datasets["train"] = load_dataset(
+            args.dataset_name,
+            args.dataset_config_name,
+            split=f"train[{args.val_split_percentage + args.test_split_percentage}%:]",
+        )
 
     logger.info(f"after loading datasets:\nraw_datasets:{raw_datasets}")
 
