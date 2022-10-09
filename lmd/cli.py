@@ -480,6 +480,8 @@ def gen_embeddings(
     # compute embeddings
     # https://huggingface.co/docs/datasets/v2.5.2/en/package_reference/main_classes#datasets.Dataset.map
     # `function(batch: Dict[str, List]) -> Dict[str, List]` if `batched=True` and `with_indices=False`
+    logger.info(f"{model.device=}")
+
     def get_sequence_embedding(examples: Dict[str, List]) -> Dict[str, List]:
         # https://huggingface.co/docs/transformers/main_classes/tokenizer
         # https://huggingface.co/docs/transformers/v4.22.2/en/main_classes/tokenizer#transformers.BatchEncoding
@@ -529,12 +531,10 @@ def gen_embeddings(
 class LanguageModelDecomposition:
     def __init__(
         self,
-        embeddings: Dict[str, torch.Tensor],
         input: List[str],
         output: str,
         alpha: float,
     ) -> None:
-        self.embeddings = embeddings
         self.input = input
         if isinstance(self.input, str):
             self.input = [self.input]
@@ -542,15 +542,26 @@ class LanguageModelDecomposition:
         self.alpha = alpha
         assert alpha >= 0
 
-    def __str__(self) -> str:
-        return f"LanguageModelDecomposition(input={self.input}, output={self.output}, alpha={self.alpha})"
+    def __repr__(self) -> str:
+        return f"LanguageModelDecomposition(output={self.output}, input={self.input}, alpha={self.alpha})"
 
-    def train(self):
+    def train(
+        self,
+        train_embeddings: Dict[str, torch.Tensor],
+    ):
         # (hidden_size * num_inputs, batch_size)
-        Z = torch.cat([self.embeddings[i] for i in self.input], dim=1).T
+        Z = torch.cat([train_embeddings[i] for i in self.input], dim=1).T
 
         # (hidden_size, batch_size)
-        U = self.embeddings[self.output].T
+        U = train_embeddings[self.output].T
+
+        # input_size = hidden_size * num_inputs
+        # output_size = hidden_size
+        input_size = Z.shape[0]
+        output_size = U.shape[0]
+
+        # batch_size
+        assert Z.shape[1] == U.shape[1]
 
         logger.debug(f"{Z.shape=}")
         logger.debug(f"{Z.device=}")
@@ -559,18 +570,22 @@ class LanguageModelDecomposition:
 
         # E[z * z^T]
         # (hidden_size * num_inputs, hidden_size * num_inputs)
-        A = torch.mm(Z, torch.t(Z)) / Z.shape[0]
+        A = torch.mm(Z, Z.T) / Z.shape[0]
+        assert A.shape == (input_size, input_size)
         logger.debug(f"{A.shape=}")
 
         # E[u * z^T]
         # (hidden_size, hidden_size * num_inputs)
-        B = torch.mm(U, torch.t(Z)) / Z.shape[0]
+        B = torch.mm(U, Z.T) / Z.shape[0]
+        assert B.shape == (output_size, input_size)
         logger.debug(f"{B.shape=}")
 
         # W = B * (A)^(-1)
         # W*A = B => A^T * W^T = B^T, A = A^T
         # (hidden_size, hidden_size * num_inputs)
         self.W = torch.linalg.solve(A + self.alpha * torch.eye(A.shape[0]), B.T).T
+        assert self.W.shape == (output_size, input_size)
+
         logger.debug(f"{self.W.shape=}")
         logger.debug(f"{self.W.device=}")
 
@@ -581,6 +596,15 @@ class LanguageModelDecomposition:
         # (hidden_size, batch_size)
         U = embeddings[self.output].T
 
+        # input_size = hidden_size * num_inputs
+        # output_size = hidden_size
+        input_size = Z.shape[0]
+        output_size = U.shape[0]
+        assert self.W.shape == (output_size, input_size)
+
+        # batch_size
+        assert Z.shape[1] == U.shape[1]
+
         logger.debug(f"{Z.shape=}")
         logger.debug(f"{Z.device=}")
         logger.debug(f"{U.shape=}")
@@ -588,8 +612,13 @@ class LanguageModelDecomposition:
 
         # E.shape = (hidden_size, batch_size)
         E = U - torch.mm(self.W, Z)
+        assert E.shape == U.shape
+
         SSR = torch.sum(E**2, dim=0).mean().item()
         SST = torch.sum(U**2, dim=0).mean().item()
+
+        assert SSR >= 0
+        assert SST >= 0
 
         logger.debug(f"{SSR=}, {SST=}")
         return 1 - SSR / SST
@@ -716,12 +745,10 @@ def main():
     for output in tqdm(all_models, desc="Run LMD for group score"):
         input = set(all_models) - set([output])
         input = list(input)
-        lmd = LanguageModelDecomposition(
-            embeddings["train"], input, output, alpha=args.alpha
-        )
+        lmd = LanguageModelDecomposition(input, output, alpha=args.alpha)
 
         logger.info(f"Run {str(lmd)}")
-        lmd.train()
+        lmd.train(embeddings["train"])
 
         filename = os.path.join(group_model_dir, f"{'-'.join(output.split('/'))}.lmd")
         logger.info(f"save group model {str(lmd)} to {filename}")
@@ -752,11 +779,9 @@ def main():
     all_pairs = list(itertools.permutations(all_models, 2))
     for input, output in tqdm(all_pairs, desc="Run LMD for pairwise score"):
         logger.info(f"{input=}, {output=}")
-        lmd = LanguageModelDecomposition(
-            embeddings["train"], input, output, alpha=args.alpha
-        )
+        lmd = LanguageModelDecomposition(input, output, alpha=args.alpha)
 
-        lmd.train()
+        lmd.train(embeddings["train"])
 
         filename = os.path.join(
             pairwise_model_dir,
