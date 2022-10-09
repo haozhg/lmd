@@ -357,6 +357,8 @@ def gen_embeddings(
     model = AutoModel.from_pretrained(model_name_or_path)
     model.to(dev)
     model.eval()
+    
+    logger.info(f"{model.device=}")
 
     column_names = raw_datasets["train"].column_names
     text_column_name = "text" if "text" in column_names else column_names[0]
@@ -465,6 +467,8 @@ class LanguageModelDecomposition:
     ) -> None:
         self.embeddings = embeddings
         self.input = input
+        if isinstance(self.input, str):
+            self.input = [self.input]
         self.output = output
         self.alpha = alpha
         assert alpha >= 0
@@ -560,18 +564,21 @@ def main():
     # then tokenize using model specific tokenizers
     # compute embedding
     logger.info(f"gen embeddings for target model_name={args.target}")
-    embeddings = defaultdict(dict)
-    embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
-    for split, ds in embedding_datasets.items():
-        embeddings[split][args.target] = ds["embedding"]
-
-    for model_name in args.basis:
-        logger.info(f"gen embeddings for {model_name=}")
-        embedding_datasets = gen_embeddings(model_name, sequence_datasets, args)
+    try:
+        logger.info(f"Try to load embeddings from: embeddings.pt")
+        embeddings = torch.load("embeddings.pt")
+    except:
+        embeddings = defaultdict(dict)
+        embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
         for split, ds in embedding_datasets.items():
-            embeddings[split][model_name] = ds["embedding"]
-
-    torch.save(embeddings, "embeddings.pt")
+            embeddings[split][args.target] = ds["embedding"]
+        for model_name in args.basis:
+            logger.info(f"gen embeddings for {model_name=}")
+            embedding_datasets = gen_embeddings(model_name, sequence_datasets, args)
+            for split, ds in embedding_datasets.items():
+                embeddings[split][model_name] = ds["embedding"]
+        logger.info(f"Save embeddings to: embeddings.pt")
+        torch.save(embeddings, "embeddings.pt")
 
     group_score = defaultdict(dict)
     all_models = args.basis + [args.target]
