@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Setup logging
 logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    format="%(asctime)s - %(levelname)s - %(name)s - [%(filename)s:%(lineno)s - %(funcName)20s() ] - %(message)s",
     datefmt="%m/%d/%Y %H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)],
     level="INFO",
@@ -569,6 +569,11 @@ def main():
 
     assert isinstance(args.basis, list)
     assert args.target not in args.basis
+
+    # check rank of matrix
+    if not (args.max_train_samples >= len(args.basis) * 768):
+        logger.warning(f"LMD is under constrained")
+        logger.warning(f"args.max_train_samples < len(args.basis) * 768")
 
     print(f"Arguments:\n{json.dumps(vars(args), indent=4)}")
 
