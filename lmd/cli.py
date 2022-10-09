@@ -545,6 +545,7 @@ def main():
     else:
         args.basis = [model_name for model_name in MODELS if model_name != args.target]
 
+    assert isinstance(args.basis, list)
     assert args.target not in args.basis
 
     print("Arguments: " + str(args))
@@ -581,7 +582,7 @@ def main():
 
     # then tokenize using model specific tokenizers
     # compute embedding
-    all_models = args.basis + [args.target]
+    all_models = [args.target] + args.basis
 
     try:
         logger.info(f"Try to load embeddings from: embeddings.pt")
