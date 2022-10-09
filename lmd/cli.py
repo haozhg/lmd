@@ -536,14 +536,14 @@ def main():
     # compute embedding
     logger.info(f"gen embeddings for target model_name={args.target}")
     embeddings = defaultdict(dict)
-    embedding_datasets = gen_embeddings(args.target, sequence_datasets, args).items()
-    for split, ds in embedding_datasets:
+    embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
+    for split, ds in embedding_datasets.items():
         embeddings[split][args.target] = ds
 
     for model_name in args.basis:
         logger.info(f"gen embeddings for {model_name=}")
         embedding_datasets = gen_embeddings(model_name, sequence_datasets, args)
-        for split, ds in embedding_datasets:
+        for split, ds in embedding_datasets.items():
             embeddings[split][model_name] = ds
 
     torch.save(embeddings, "embeddings.pt")
