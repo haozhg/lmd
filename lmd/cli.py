@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from typing import Dict, List, Optional, Union
 
+import pandas as pd
 import torch
 import transformers
 from datasets import DatasetDict, load_dataset
@@ -128,6 +129,12 @@ def parse_args():
         type=str,
         default="data/embeddings",
         help="data dir to save embedding datasets",
+    )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=1e-6,
+        help="L2 regularization coefficient",
     )
     args = parser.parse_args()
     return args
@@ -408,7 +415,7 @@ def gen_embeddings(
         batched=True,
         batch_size=data_args.batch_size,
         num_proc=data_args.preprocessing_num_workers,
-        # remove_columns=column_names,
+        remove_columns=column_names,
         load_from_cache_file=not data_args.overwrite_cache,
         desc=f"Get sequence embeddings",
     )
@@ -427,6 +434,68 @@ def gen_embeddings(
     )
 
     return embedding_datasets
+
+
+class LanguageModelDecomposition:
+    def __init__(
+        self,
+        embeddings: Dict[str, torch.Tensor],
+        input: List[str],
+        output: str,
+        alpha: float,
+    ) -> None:
+        self.embeddings = embeddings
+        self.input = input
+        self.output = output
+        self.alpha = alpha
+        assert alpha >= 0
+
+    def train(self):
+        # (hidden_size * num_inputs, batch_size)
+        Z = torch.cat([self.embeddings[i] for i in self.input], dim=1).T
+
+        # (hidden_size, batch_size)
+        U = self.embeddings[self.output].T
+
+        logger.info(f"{Z.shape=}")
+        logger.info(f"{Z.device=}")
+        logger.info(f"{U.shape=}")
+        logger.info(f"{U.device=}")
+
+        # E[z * z^T]
+        # (hidden_size * num_inputs, hidden_size * num_inputs)
+        A = torch.mm(Z, torch.t(Z)) / Z.shape[0]
+        logger.info(f"{A.shape=}")
+
+        # E[u * z^T]
+        # (hidden_size, hidden_size * num_inputs)
+        B = torch.mm(U, torch.t(Z)) / Z.shape[0]
+        logger.info(f"{B.shape=}")
+
+        # W = B * (A)^(-1)
+        # W*A = B => A^T * W^T = B^T, A = A^T
+        # (hidden_size, hidden_size * num_inputs)
+        self.W = torch.linalg.solve(A + self.alpha * torch.eye(A.shape[0]), B.T).T
+        logger.info(f"{self.W.shape=}")
+        logger.info(f"{self.W.device=}")
+
+    def score(self, embeddings: Dict[str, torch.Tensor]) -> float:
+        # (hidden_size * num_inputs, batch_size)
+        Z = torch.cat([embeddings[i] for i in self.input], dim=1).T
+
+        # (hidden_size, batch_size)
+        U = embeddings[self.output].T
+
+        logger.info(f"{Z.shape=}")
+        logger.info(f"{Z.device=}")
+        logger.info(f"{U.shape=}")
+        logger.info(f"{U.device=}")
+
+        # E.shape = (hidden_size, batch_size)
+        E = U - torch.mm(self.W, Z)
+        SSR = torch.sum(E**2, dim=0).mean().item()
+        SST = torch.sum(U**2, dim=0).mean().item()
+        return SSR / SST
 
 
 def main():
@@ -461,17 +530,30 @@ def main():
     # then tokenize using model specific tokenizers
     # compute embedding
     logger.info(f"gen embeddings for target model_name={args.target}")
-    target_embedding_datasets = gen_embeddings(args.target, sequence_datasets, args)
+    embeddings = {}
+    embedding_datasets = gen_embeddings(args.target, sequence_datasets, args).items()
+    for split, ds in embedding_datasets:
+        embeddings[split][args.target] = ds
 
-    basis_embeddings = {}
     for model_name in args.basis:
         logger.info(f"gen embeddings for {model_name=}")
-        basis_embeddings[model_name] = gen_embeddings(
-            model_name, sequence_datasets, args
-        )
+        embedding_datasets = gen_embeddings(model_name, sequence_datasets, args)
+        for split, ds in embedding_datasets:
+            embeddings[split][model_name] = ds
+
+    torch.save(embeddings, "embeddings.pt")
 
     # solve LMD
-    # output results
+    lmd = LanguageModelDecomposition(
+        embeddings["train"], args.basis, args.target, alpha=args.alpha
+    )
+    lmd.train()
+
+    logger.info(f"{lmd.score(embeddings['train'])=}")
+
+    logger.info(f"{lmd.score(embeddings['validation'])=}")
+
+    logger.info(f"{lmd.score(embeddings['test'])=}")
 
 
 if __name__ == "__main__":
