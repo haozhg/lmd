@@ -46,6 +46,18 @@ else:
     dev = "cpu"
 
 
+MODELS = [
+    "xlm-roberta-base",
+    "bert-base-multilingual-cased",
+    "roberta-base",
+    "xlnet-base-uncased",
+    "bert-base-uncased",
+    "distilroberta-base",
+    "distilbert-base-uncased",
+    "albert-base-v2",
+]
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         "Language Model Decomposition",
@@ -57,7 +69,7 @@ def parse_args():
     parser.add_argument(
         "--basis",
         type=str,
-        default="roberta-base",
+        default=None,
         help="basis model in LMD, separated by comma",
     )
     parser.add_argument(
@@ -509,11 +521,18 @@ def main():
     """Console script for lmd."""
     args = parse_args()
 
-    args.basis = args.basis.split(",")
+    if args.basis:
+        args.basis = args.basis.split(",")
+    else:
+        args.basis = list(set(MODELS) - [args.target])
 
     assert args.target not in args.basis
 
     print("Arguments: " + str(args))
+
+    for model_name in MODELS:
+        model = AutoModel.from_pretrained(model_name)
+        del model
 
     # load dataset
     raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
@@ -568,6 +587,7 @@ def main():
         for split in ["train", "validation", "test"]:
             group_score[split][output] = lmd.score(embeddings[split])
 
+    logger.info(f"{group_score=}")
     torch.save(group_score, "group_score.pt")
 
     # pairwise
@@ -591,6 +611,7 @@ def main():
         for split in ["train", "validation", "test"]:
             pairwise_score[split].loc[input, output] = lmd.score(embeddings[split])
 
+    logger.info(f"{pairwise_score=}")
     torch.save(pairwise_score, "pairwise_score.pt")
 
     # lmd_from_file = torch.load("lmd.model")
