@@ -555,7 +555,7 @@ def main():
     )
     lmd.train()
 
-    torch.save("lmd", "lmd.obj")
+    torch.save(lmd, "lmd.model")
 
     logger.info(f"{lmd.score(embeddings['train'])=}")
 
@@ -563,7 +563,7 @@ def main():
 
     logger.info(f"{lmd.score(embeddings['test'])=}")
 
-    lmd_from_file = torch.load("lmd.obj")
+    lmd_from_file = torch.load("lmd.model")
     logger.info(f"{type(lmd_from_file)=}")
 
     logger.info(f"{lmd_from_file.score(embeddings['train'])=}")
