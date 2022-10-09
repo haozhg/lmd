@@ -154,6 +154,12 @@ def parse_args():
         default="INFO",
         help="logging level",
     )
+    parser.add_argument(
+        "--try-models",
+        type=bool,
+        default=False,
+        help="whether to try to load all models before running main",
+    )
     args = parser.parse_args()
     return args
 
@@ -545,11 +551,12 @@ def main():
 
     logger.setLevel(args.log_level)
 
-    logger.info(f"Try load all models: {MODELS}")
-    for model_name in MODELS:
-        logger.info(f"load model: {model_name}")
-        model = AutoModel.from_pretrained(model_name)
-        del model
+    if args.try_models:
+        logger.info(f"Try load all models: {MODELS}")
+        for model_name in MODELS:
+            logger.info(f"load model: {model_name}")
+            model = AutoModel.from_pretrained(model_name)
+            del model
 
     # load dataset
     raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
