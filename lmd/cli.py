@@ -761,7 +761,7 @@ def main():
         logger.info(f"Run {str(lmd)}")
         lmd.train(embeddings["train"])
 
-        filename = os.path.join(group_model_dir, f"{'-'.join(output.split('/'))}.lmd")
+        filename = os.path.join(group_model_dir, f"{'%'.join(output.split('/'))}.lmd")
         logger.info(f"save group model {str(lmd)} to {filename}")
         torch.save(lmd, filename)
 
@@ -798,7 +798,7 @@ def main():
 
         filename = os.path.join(
             pairwise_model_dir,
-            f"output_{'-'.join(output.split('/'))}_input_{'-'.join(input.split('/'))}.lmd",
+            f"output_{'%'.join(output.split('/'))}_input_{'%'.join(input.split('/'))}.lmd",
         )
 
         logger.info(f"save pairwise model {str(lmd)} to {filename}")
