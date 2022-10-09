@@ -613,6 +613,7 @@ def main():
             embeddings["train"], input, output, alpha=args.alpha
         )
 
+        logger.info(f"Run {str(lmd)}")
         lmd.train()
 
         filename = os.path.join("models", "group", f"{'-'.join(output.split('/'))}.lmd")
@@ -620,7 +621,9 @@ def main():
         torch.save(lmd, filename)
 
         for split in ["train", "validation", "test"]:
-            group_score[split][output] = lmd.score(embeddings[split])
+            R2 = lmd.score(embeddings[split])
+            logger.info(f"{str(lmd)}, {split=}, {R2=}")
+            group_score[split][output] = R2
 
     os.makedirs("results", exist_ok=True)
     logger.info(f"group_score={json.dumps(group_score, indent=4)}")
@@ -635,9 +638,9 @@ def main():
         pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
     os.makedirs("models/pairwise", exist_ok=True)
-    for input, output in tqdm(
-        itertools.permutations(all_models, 2), desc="Run LMD for pairwise score"
-    ):
+    all_pairs = list(itertools.permutations(all_models, 2))
+    for input, output in tqdm(all_pairs, desc="Run LMD for pairwise score"):
+        logger.info(f"{input=}, {output=}")
         lmd = LanguageModelDecomposition(
             embeddings["train"], input, output, alpha=args.alpha
         )
@@ -655,12 +658,16 @@ def main():
         torch.save(lmd, filename)
 
         for split in ["train", "validation", "test"]:
-            pairwise_score[split].loc[input, output] = lmd.score(embeddings[split])
+            R2 = lmd.score(embeddings[split])
+            logger.info(f"{input=}, {output=}, {split=}, {R2=}")
+            pairwise_score[split].loc[input, output] = R2
 
-    logger.info(f"{pairwise_score=}")
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
 
     logger.info(f"save pairwise_score df to file")
     for split in ["train", "validation", "test"]:
+        logger.info(f"{split=}, {pairwise_score[split]=}")
         filename = os.path.join("results", f"pairwise_score_{split}.csv")
         pairwise_score[split].to_csv(filename)
 
