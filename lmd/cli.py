@@ -583,14 +583,14 @@ def main():
             model.eval()
             with Timer(f"model inference for {model_name}"):
                 with torch.no_grad():
-                    texts = [
-                        " ".join(["hello"] * args.max_seq_length)
-                    ] * args.batch_size
+                    text = " ".join(["hello"] * args.max_seq_length)
+                    texts = [text] * args.batch_size
                     encoded_input = tokenizer(
                         texts,
                         padding="max_length",
                         max_length=args.max_seq_length,
                         truncation=True,
+                        return_tensors="pt",
                     )
                     outputs = model(**encoded_input)
                     assert outputs.last_hidden_state.requires_grad == False
