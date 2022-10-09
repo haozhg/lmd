@@ -548,7 +548,7 @@ def main():
     assert isinstance(args.basis, list)
     assert args.target not in args.basis
 
-    print("Arguments: " + str(args))
+    print(f"Arguments:\n{json.dumps(vars(args), indent=4)}")
 
     logger.setLevel(args.log_level)
 
