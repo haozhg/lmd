@@ -524,7 +524,7 @@ def main():
     if args.basis:
         args.basis = args.basis.split(",")
     else:
-        args.basis = list(set(MODELS) - [args.target])
+        args.basis = list(set(MODELS) - set([args.target]))
 
     assert args.target not in args.basis
 
