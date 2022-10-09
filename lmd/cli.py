@@ -537,7 +537,7 @@ def main():
     if args.basis:
         args.basis = args.basis.split(",")
     else:
-        args.basis = list(set(MODELS) - set([args.target]))
+        args.basis = [model_name for model_name in MODELS if model_name != args.target]
 
     assert args.target not in args.basis
 
@@ -576,7 +576,6 @@ def main():
     # compute embedding
     all_models = args.basis + [args.target]
 
-    logger.info(f"gen embeddings for target model_name={args.target}")
     try:
         logger.info(f"Try to load embeddings from: embeddings.pt")
         embeddings = torch.load("embeddings.pt")
