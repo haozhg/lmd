@@ -646,8 +646,13 @@ def main():
     logger.setLevel(args.log_level)
 
     if args.try_models:
-        logger.info(f"Try model inference with given batch size: {MODELS}")
-        for model_name in tqdm(MODELS, desc="Try model inference"):
+        logger.info(
+            f"Try model inference with batch size: {args.batch_size}, max_seq_length: {args.max_seq_length}, {MODELS}"
+        )
+        for model_name in tqdm(
+            MODELS,
+            desc=f"Try model inference with batch size: {args.batch_size}, max_seq_length: {args.max_seq_length}",
+        ):
             logger.info(f"load model: {model_name}")
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModel.from_pretrained(model_name)
