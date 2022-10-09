@@ -280,7 +280,10 @@ def gen_sequence(
     log_few_samples(tokenized_datasets)
 
     filename = os.path.join(
-        data_args.preprocess_dir, data_args.tokenizer_name, "tokenized"
+        data_args.preprocess_dir,
+        str(data_args.max_seq_length),
+        data_args.tokenizer_name,
+        "tokenized",
     )
     logger.info(f"save tokenized_datasets to {filename}")
     tokenized_datasets.save_to_disk(filename)
@@ -324,7 +327,10 @@ def gen_sequence(
     log_few_samples(grouped_datasets)
 
     filename = os.path.join(
-        data_args.preprocess_dir, data_args.tokenizer_name, "grouped"
+        data_args.preprocess_dir,
+        str(data_args.max_seq_length),
+        data_args.tokenizer_name,
+        "grouped",
     )
     logger.info(f"save grouped_datasets to {filename}")
     grouped_datasets.save_to_disk(filename)
@@ -370,7 +376,10 @@ def gen_sequence(
     logger.info(f"after selecting subset\nsequence_datasets: {sequence_datasets}")
 
     filename = os.path.join(
-        data_args.preprocess_dir, data_args.tokenizer_name, "sequence"
+        data_args.preprocess_dir,
+        str(data_args.max_seq_length),
+        data_args.tokenizer_name,
+        "sequence",
     )
     logger.info(f"save sequence_datasets to {filename}")
     sequence_datasets.save_to_disk(filename)
@@ -454,7 +463,12 @@ def gen_embeddings(
 
     logger.info(f"after tokenization:\n{tokenized_datasets=}")
     log_few_samples(tokenized_datasets)
-    filename = os.path.join(data_args.embedding_dir, model_name_or_path, "tokenized")
+    filename = os.path.join(
+        data_args.embedding_dir,
+        str(data_args.max_seq_length),
+        model_name_or_path,
+        "tokenized",
+    )
     logger.info(f"save tokenized_datasets to {filename}")
     tokenized_datasets.save_to_disk(filename)
 
@@ -500,11 +514,14 @@ def gen_embeddings(
     logger.info(f"after computing embedding:\n{embedding_datasets=}")
     log_few_samples(embedding_datasets)
 
-    filename = os.path.join(data_args.embedding_dir, model_name_or_path, "embeddings")
-    logger.info(f"save embedding_datasets to {filename}")
-    embedding_datasets.save_to_disk(
-        os.path.join(data_args.embedding_dir, model_name_or_path, "embeddings")
+    filename = os.path.join(
+        data_args.embedding_dir,
+        str(data_args.max_seq_length),
+        model_name_or_path,
+        "embeddings",
     )
+    logger.info(f"save embedding_datasets to {filename}")
+    embedding_datasets.save_to_disk(filename)
 
     return embedding_datasets
 
@@ -673,7 +690,7 @@ def main():
     all_models = [args.target] + args.basis
 
     embeddings_path = os.path.join(
-        args.embedding_dir, args.max_seq_length, "embeddings.pt"
+        args.embedding_dir, str(args.max_seq_length), "embeddings.pt"
     )
     try:
         logger.info(f"Try to load embeddings from: {embeddings_path}")
@@ -694,7 +711,7 @@ def main():
 
     logger.info(f"Run LMD for group score")
     group_score = defaultdict(dict)
-    group_model_dir = os.path.join(args.models_dir, args.max_seq_length, "group")
+    group_model_dir = os.path.join(args.models_dir, str(args.max_seq_length), "group")
     os.makedirs(group_model_dir, exist_ok=True)
     for output in tqdm(all_models, desc="Run LMD for group score"):
         input = set(all_models) - set([output])
@@ -715,7 +732,7 @@ def main():
             logger.info(f"{str(lmd)}, {split=}, {R2=}")
             group_score[split][output] = R2
 
-    results_dir = os.path.join(args.results_dir, args.max_seq_length)
+    results_dir = os.path.join(args.results_dir, str(args.max_seq_length))
     os.makedirs(results_dir, exist_ok=True)
     logger.info(f"group_score={json.dumps(group_score, indent=4)}")
     with open(os.path.join(results_dir, "group_score.json"), "w") as f:
@@ -728,7 +745,9 @@ def main():
     for split in ["train", "validation", "test"]:
         pairwise_score[split] = pd.DataFrame(columns=all_models, index=all_models)
 
-    pairwise_model_dir = os.path.join(args.models_dir, args.max_seq_length, "pairwise")
+    pairwise_model_dir = os.path.join(
+        args.models_dir, str(args.max_seq_length), "pairwise"
+    )
     os.makedirs(pairwise_model_dir, exist_ok=True)
     all_pairs = list(itertools.permutations(all_models, 2))
     for input, output in tqdm(all_pairs, desc="Run LMD for pairwise score"):
