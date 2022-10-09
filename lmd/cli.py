@@ -430,11 +430,12 @@ def gen_embeddings(
         # examples['input_ids'] is tensor of size (batch_size, seq_length)
         examples = transformers.BatchEncoding(examples)
         examples.to(model.device)
-        outputs = model(**examples)
-        sentence_embeddings = mean_pooling(
-            outputs.last_hidden_state, examples["attention_mask"]
-        )
-        return {"embedding": sentence_embeddings.detach().cpu().numpy()}
+        with torch.no_grad():
+            outputs = model(**examples)
+            sentence_embeddings = mean_pooling(
+                outputs.last_hidden_state, examples["attention_mask"]
+            )
+            return {"embedding": sentence_embeddings.detach().cpu().numpy()}
 
     column_names = tokenized_datasets["train"].column_names
 
