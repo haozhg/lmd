@@ -196,6 +196,12 @@ def parse_args():
         default=1,
         help="Filter based on rows in DatasetDict before filtering based on num of seq",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Filter based on rows in DatasetDict before filtering based on num of seq",
+    )
     args = parser.parse_args()
     return args
 
@@ -682,6 +688,9 @@ def main():
 
     logger.setLevel(args.log_level)
 
+    # Set seed before initializing model.
+    set_seed(args.seed)
+
     if args.try_models:
         logger.info(
             f"Try model inference with batch size: {args.batch_size}, max_seq_length: {args.max_seq_length}, {MODELS}"
@@ -739,6 +748,9 @@ def main():
             split=f"train[{args.val_split_percentage + args.test_split_percentage}%:]",
         )
         logger.info(f"after splitting datasets:\nraw_datasets:{raw_datasets}")
+
+    logger.info(f"Shuffle raw_datasets")
+    raw_datasets = raw_datasets.shuffle(seed=args.seed)
 
     logger.info(
         f"pre-select subset to reduce preprocessing time (tokenization, grouping, gen_sequences)"
