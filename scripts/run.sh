@@ -10,5 +10,5 @@ do
         --dataset-config-name raw_en \
         --pre-select-multiplier 1 \
         --try-models True \
-        2>&1 | tee -a lmd.log
+        2>&1 | tee -a logs/lmd.log
 done
