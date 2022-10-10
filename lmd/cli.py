@@ -539,18 +539,29 @@ def gen_embeddings(
 
 
 class LanguageModelDecomposition:
+    """_summary_
+    u = w_i * v_i + b
+    W = [w_1, w_2, ..., w_k]
+    z = concat(v_1, v_2, ..., v_k)
+    L = E[(u - Wz - b)^T (u - Wz - b)]
+    => W = cov(u, z) * cov(z, z^T) (-1)
+    => b = E[u] - W * E[z]
+    """
+
     def __init__(
         self,
         input: List[str],
         output: str,
         alpha: float,
     ) -> None:
+        assert alpha >= 0
         self.input = input
         if isinstance(self.input, str):
             self.input = [self.input]
         self.output = output
         self.alpha = alpha
-        assert alpha >= 0
+        self.W = None
+        self.b = None
 
     def __repr__(self) -> str:
         return f"LanguageModelDecomposition(output={self.output}, input={self.input}, alpha={self.alpha})"
@@ -567,8 +578,10 @@ class LanguageModelDecomposition:
 
         # input_size = hidden_size * num_inputs
         # output_size = hidden_size
+        num_inputs = len(self.input)
         input_size = Z.shape[0]
         output_size = U.shape[0]
+        assert input_size == num_inputs * output_size
 
         # batch_size
         assert Z.shape[1] == U.shape[1]
@@ -580,13 +593,20 @@ class LanguageModelDecomposition:
 
         # E[z * z^T]
         # (hidden_size * num_inputs, hidden_size * num_inputs)
-        A = torch.mm(Z, Z.T) / Z.shape[0]
+        # A = torch.mm(Z, Z.T) / Z.shape[0]
+        A = torch.cov(Z)
+        assert torch.equal(A, A.T)
         assert A.shape == (input_size, input_size)
         logger.debug(f"{A.shape=}")
 
         # E[u * z^T]
         # (hidden_size, hidden_size * num_inputs)
-        B = torch.mm(U, Z.T) / Z.shape[0]
+        UZ = torch.cat((U, Z), dim=0)
+        UZ_cov = torch.cov(UZ)
+        assert torch.equal(UZ_cov, UZ_cov.T)
+
+        # B = torch.mm(U, Z.T) / Z.shape[0]
+        B = UZ_cov[:output_size, output_size:]
         assert B.shape == (output_size, input_size)
         logger.debug(f"{B.shape=}")
 
@@ -598,6 +618,12 @@ class LanguageModelDecomposition:
 
         logger.debug(f"{self.W.shape=}")
         logger.debug(f"{self.W.device=}")
+
+        self.b = U.mean(dim=1) - torch.matmul(self.W, Z.mean(dim=1))
+        assert self.b.shape == (output_size,)
+
+        logger.debug(f"{self.b.shape=}")
+        logger.debug(f"{self.b.device=}")
 
     def score(self, embeddings: Dict[str, torch.Tensor]) -> float:
         # (hidden_size * num_inputs, batch_size)
@@ -621,11 +647,12 @@ class LanguageModelDecomposition:
         logger.debug(f"{U.device=}")
 
         # E.shape = (hidden_size, batch_size)
-        E = U - torch.mm(self.W, Z)
+        E = U - torch.mm(self.W, Z) - self.b.unsqueeze(dim=1)
         assert E.shape == U.shape
 
+        EU = U.mean(dim=1)
         SSR = torch.sum(E**2, dim=0).mean().item()
-        SST = torch.sum(U**2, dim=0).mean().item()
+        SST = torch.sum((U - EU.unsqueeze(dim=1)) ** 2, dim=0).mean().item()
 
         assert SSR >= 0
         assert SST >= 0
