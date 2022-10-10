@@ -342,6 +342,17 @@ def gen_sequence(
     logger.info(f"after grouping text:\n{grouped_datasets=}")
     log_few_samples(grouped_datasets)
 
+    grouped_datasets = sample_datasets_subset(
+        grouped_datasets,
+        {
+            "train": data_args.max_train_samples,
+            "validation": data_args.max_val_samples,
+            "test": data_args.max_test_samples,
+        },
+    )
+
+    logger.info(f"after selecting subset\ngrouped_datasets: {grouped_datasets}")
+
     filename = os.path.join(
         data_args.preprocess_dir,
         str(data_args.max_seq_length),
@@ -379,17 +390,6 @@ def gen_sequence(
 
     logger.info(f"after get_sequence_text():\n{sequence_datasets=}")
     log_few_samples(sequence_datasets)
-
-    sequence_datasets = sample_datasets_subset(
-        sequence_datasets,
-        {
-            "train": data_args.max_train_samples,
-            "validation": data_args.max_val_samples,
-            "test": data_args.max_test_samples,
-        },
-    )
-
-    logger.info(f"after selecting subset\nsequence_datasets: {sequence_datasets}")
 
     filename = os.path.join(
         data_args.preprocess_dir,
