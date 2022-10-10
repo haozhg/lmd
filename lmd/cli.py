@@ -190,6 +190,12 @@ def parse_args():
         default=False,
         help="try load model and run inference for all models before running main",
     )
+    parser.add_argument(
+        "--pre-select-multiplier",
+        type=int,
+        default=1,
+        help="Filter based on rows in DatasetDict before filtering based on num of seq",
+    )
     args = parser.parse_args()
     return args
 
@@ -707,15 +713,17 @@ def main():
         )
         logger.info(f"after splitting datasets:\nraw_datasets:{raw_datasets}")
 
+    logger.info(
+        f"pre-select subset to reduce preprocessing time (tokenization, grouping, gen_sequences)"
+    )
     raw_datasets = sample_datasets_subset(
         raw_datasets,
         {
-            "train": args.max_train_samples * 10,
-            "validation": args.max_val_samples * 10,
-            "test": args.max_test_samples * 10,
+            "train": args.max_train_samples * args.pre_select_multiplier,
+            "validation": args.max_val_samples * args.pre_select_multiplier,
+            "test": args.max_test_samples * args.pre_select_multiplier,
         },
     )
-
     logger.info(f"after selecting subset\nraw_datasets: {raw_datasets}")
 
     log_few_samples(raw_datasets)
