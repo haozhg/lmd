@@ -682,13 +682,14 @@ def main():
 
     # load dataset
     raw_datasets = load_dataset(args.dataset_name, args.dataset_config_name)
+    logger.info(f"after loading datasets:\nraw_datasets:{raw_datasets}")
 
     # split validation if not exists
     # ref: https://github.com/huggingface/transformers/blob/main/examples/pytorch/language-modeling/run_mlm.py#L289
     # https://huggingface.co/docs/datasets/v1.11.0/splits.html
     # https://huggingface.co/docs/datasets/loading#slice-splits
     if "validation" not in raw_datasets.keys():
-        logger.info(f"split validation and test from train")
+        logger.warning(f"split validation and test from train")
         raw_datasets["validation"] = load_dataset(
             args.dataset_name,
             args.dataset_config_name,
@@ -704,8 +705,7 @@ def main():
             args.dataset_config_name,
             split=f"train[{args.val_split_percentage + args.test_split_percentage}%:]",
         )
-
-    logger.info(f"after loading datasets:\nraw_datasets:{raw_datasets}")
+        logger.info(f"after splitting datasets:\nraw_datasets:{raw_datasets}")
 
     raw_datasets = sample_datasets_subset(
         raw_datasets,
