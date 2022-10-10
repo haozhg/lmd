@@ -9,7 +9,7 @@ with open("README.md") as readme_file:
 
 requirements = [
     line.strip()
-    for line in open("requirements.txt")
+    for line in open("requirements.in")
     if not line.strip().startswith("#")
 ]
 
