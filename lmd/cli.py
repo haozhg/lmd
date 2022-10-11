@@ -679,10 +679,10 @@ def main():
     assert isinstance(args.basis, list)
     assert args.target not in args.basis
 
-    # check rank of matrix
-    if not (args.max_train_samples >= len(args.basis) * 768):
-        logger.warning(f"LMD is under constrained")
-        logger.warning(f"args.max_train_samples < len(args.basis) * 768")
+    # check there is enough train samples
+    assert (
+        args.max_train_samples > len(args.basis) * 768
+    ), "No enough train samples, LMD solver is under constrained"
 
     print(f"Arguments:\n{json.dumps(vars(args), indent=4)}")
 
