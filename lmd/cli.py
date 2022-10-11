@@ -97,13 +97,13 @@ def parse_args():
     parser.add_argument(
         "--dataset-name",
         type=str,
-        default="wikitext",
+        default="wikicorpus",
         help="The name of the dataset (corpus) to use (via the datasets library). E.g., (bookcorpus, None)/(wikicorpus, raw_en)/(wikitext, wikitext-103-v1)",
     )
     parser.add_argument(
         "--dataset-config-name",
         type=str,
-        default="wikitext-103-v1",
+        default="raw_en",
         help="The configuration name of the dataset (corpus) to use (via the datasets library). E.g., (bookcorpus, None)/(wikicorpus, raw_en)/(wikitext, wikitext-103-v1)",
     )
     parser.add_argument(
@@ -121,19 +121,19 @@ def parse_args():
     parser.add_argument(
         "--max-train-samples",
         type=int,
-        default=20000,
+        default=128000,
         help="max train samples",
     )
     parser.add_argument(
         "--max-val-samples",
         type=int,
-        default=2000,
+        default=12800,
         help="max validation samples",
     )
     parser.add_argument(
         "--max-test-samples",
         type=int,
-        default=2000,
+        default=12800,
         help="max test samples",
     )
     parser.add_argument(
@@ -679,10 +679,10 @@ def main():
     assert isinstance(args.basis, list)
     assert args.target not in args.basis
 
-    # check rank of matrix
-    if not (args.max_train_samples >= len(args.basis) * 768):
-        logger.warning(f"LMD is under constrained")
-        logger.warning(f"args.max_train_samples < len(args.basis) * 768")
+    # check there is enough train samples
+    assert (
+        args.max_train_samples > len(args.basis) * 768
+    ), "No enough train samples, LMD solver is under constrained"
 
     print(f"Arguments:\n{json.dumps(vars(args), indent=4)}")
 
@@ -732,6 +732,13 @@ def main():
     # https://huggingface.co/docs/datasets/loading#slice-splits
     if "validation" not in raw_datasets.keys():
         logger.warning(f"split validation and test from train")
+        # train_test_datasets = raw_datasets["train"].train_test_split(test_size=args.test_split_percentage)
+        # raw_datasets["test"] = train_test_datasets["test"]
+
+        # train_val_datasets = train_test_datasets["train"].train_test_split(test_size=args.val_split_percentage/(1 - args.test_split_percentage))
+        # raw_datasets["train"] = train_val_datasets["train"]
+        # raw_datasets["validation"] = train_val_datasets["test"]
+
         raw_datasets["validation"] = load_dataset(
             args.dataset_name,
             args.dataset_config_name,
