@@ -7,12 +7,6 @@ from setuptools import find_packages, setup
 with open("README.md") as readme_file:
     readme = readme_file.read()
 
-requirements = [
-    line.strip()
-    for line in open("requirements.in")
-    if not line.strip().startswith("#")
-]
-
 test_requirements = [
     "pytest>=3",
 ]
@@ -37,16 +31,31 @@ setup(
             "lmd=lmd.cli:main",
         ],
     },
-    install_requires=requirements,
+    install_requires=[
+        "transformers",
+        "datasets",
+        "torch",
+        "tqdm",
+        "pandas",
+    ],
     license="Apache Software License 2.0",
     long_description=readme,
+    long_description_content_type="text/markdown",
     include_package_data=True,
-    keywords="lmd",
-    name="lmd",
+    keywords=[
+        "nlp",
+        "machine learning",
+        "natural language processing",
+        "deep learning",
+        "language models",
+        "transformers",
+        "pre-trained models",
+    ],
+    name="nlp.lmd",
     packages=find_packages(include=["lmd", "lmd.*"]),
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/haozhg/lmd",
-    version="0.1.0",
+    version="0.2.0",
     zip_safe=False,
 )

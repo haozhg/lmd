@@ -21,7 +21,7 @@ charset-normalizer==2.1.1
     #   aiohttp
     #   requests
 datasets==2.5.2
-    # via -r requirements.in
+    # via nlp.lmd (setup.py)
 dill==0.3.5.1
     # via
     #   datasets
@@ -63,8 +63,8 @@ packaging==21.3
     #   transformers
 pandas==1.5.0
     # via
-    #   -r requirements.in
     #   datasets
+    #   nlp.lmd (setup.py)
 pyarrow==9.0.0
     # via datasets
 pyparsing==3.0.9
@@ -93,15 +93,15 @@ six==1.16.0
 tokenizers==0.12.1
     # via transformers
 torch==1.12.1
-    # via -r requirements.in
+    # via nlp.lmd (setup.py)
 tqdm==4.64.1
     # via
-    #   -r requirements.in
     #   datasets
     #   huggingface-hub
+    #   nlp.lmd (setup.py)
     #   transformers
 transformers==4.22.2
-    # via -r requirements.in
+    # via nlp.lmd (setup.py)
 typing-extensions==4.4.0
     # via
     #   huggingface-hub
