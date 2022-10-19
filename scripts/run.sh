@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -x
 
-for max_seq_length in 2 4 8 16 32 64 128 256 512
+mkdir -p logs
+
+for max_seq_length in 16 32 64 128 256 512
 do
     time python -m lmd.cli \
         --batch-size 64 \

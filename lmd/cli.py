@@ -200,7 +200,7 @@ def parse_args():
         "--seed",
         type=int,
         default=42,
-        help="Filter based on rows in DatasetDict before filtering based on num of seq",
+        help="random seed to ensure reproducibility",
     )
     args = parser.parse_args()
     return args
@@ -474,7 +474,7 @@ def gen_embeddings(
         num_proc=data_args.preprocessing_num_workers,
         remove_columns=column_names,
         load_from_cache_file=not data_args.overwrite_cache,
-        desc="Running tokenizer on every text in dataset",
+        desc=f"Running tokenizer on every text in dataset, {model_name_or_path}",
     )
 
     logger.info(f"after tokenization:\n{tokenized_datasets=}")
@@ -523,7 +523,7 @@ def gen_embeddings(
         num_proc=data_args.preprocessing_num_workers,
         remove_columns=column_names,
         load_from_cache_file=not data_args.overwrite_cache,
-        desc=f"Get sequence embeddings",
+        desc=f"Get sequence embeddings, {model_name_or_path}",
     )
 
     model = model.cpu()
@@ -657,7 +657,7 @@ class LanguageModelDecomposition:
         assert E.shape == U.shape
 
         EU = U.mean(dim=1)
-        SSR = torch.sum(E**2, dim=0).mean().item()
+        SSR = torch.sum(E ** 2, dim=0).mean().item()
         SST = torch.sum((U - EU.unsqueeze(dim=1)) ** 2, dim=0).mean().item()
 
         assert SSR >= 0
