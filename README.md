@@ -8,7 +8,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install from pip
+Install from pip (https://pypi.org/project/nlp.lmd/)
 ```
 pip install nlp.lmd
 ```
