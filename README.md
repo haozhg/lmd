@@ -1,5 +1,5 @@
 # lmd
-Code for paper titled "Language Model Decomposition: Quantifying the Dependency and Correlation of Language Models" (accepted EMNLP 2022). The arxiv version is here: 
+Code for paper titled "Language Model Decomposition: Quantifying the Dependency and Correlation of Language Models" (accepted to EMNLP 2022). The arxiv version is here: https://arxiv.org/abs/2210.10289
 
 ## Install
 Create virtual env if needed
@@ -49,3 +49,18 @@ usage: Language Model Decomposition [-h] [--target TARGET] [--basis BASIS]
 
 ## Results
 To reproduce the results in Appendix B of the paper, run `bash scripts/run.sh`. The results are also stored in [`results/128k`](./results/128k/)
+
+## Citation
+If you find this paper/code useful, please cite us:
+```
+@misc{https://doi.org/10.48550/arxiv.2210.10289,
+  doi = {10.48550/ARXIV.2210.10289},
+  url = {https://arxiv.org/abs/2210.10289},
+  author = {Zhang, Hao},
+  keywords = {Computation and Language (cs.CL), Artificial Intelligence (cs.AI), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences, I.2.7, 68T50 (Primary) 68T30, 68T07 (Secondary)},
+  title = {Language Model Decomposition: Quantifying the Dependency and Correlation of Language Models},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {arXiv.org perpetual, non-exclusive license}
+}
+```
